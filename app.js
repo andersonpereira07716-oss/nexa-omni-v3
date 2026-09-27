@@ -15,6 +15,17 @@ function saveApiKey() {
     alert('Chave da Gemini salva com sucesso no dispositivo!');
 }
 
+async function callGeminiAPI(apiKey, userText, model) {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: userText }] }]
+        })
+    });
+    return await response.json();
+}
+
 async function sendGeminiMessage() {
     const input = document.getElementById('user-input');
     const apiKey = document.getElementById('gemini-key').value.trim();
@@ -37,17 +48,15 @@ async function sendGeminiMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: userText }]
-                }]
-            })
-        });
+        // Tenta primeiro o modelo principal
+        let data = await callGeminiAPI(apiKey, userText, 'gemini-3.8-flash');
 
-        const data = await response.json();
+        // Se der erro de alta procura, tenta o fallback automático
+        if (data.error && (data.error.code === 429 || data.error.message.includes('high demand'))) {
+            document.getElementById(loadingId).innerText = "Alta procura detetada, a alternar rota...";
+            data = await callGeminiAPI(apiKey, userText, 'gemini-1.5-flash');
+        }
+
         document.getElementById(loadingId).remove();
 
         if (data.error) {
