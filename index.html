@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXA v3.0 Omni - Command Center</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="omni-container">
+        <header class="omni-header">
+            <h2>NEXA v3.0 OMNI</h2>
+            <span class="badge-online">🟢 ONLINE</span>
+        </header>
+
+        <section class="omni-section">
+            <h3>📊 Visão Geral do Sistema</h3>
+            <div class="cards-grid">
+                <div class="card"><span>Status:</span> <b>Operacional</b></div>
+                <div class="card"><span>Automações:</span> <b>Make / PM2</b></div>
+                <div class="card"><span>Segurança:</span> <b>Supabase RLS</b></div>
+            </div>
+        </section>
+
+        <section class="omni-section">
+            <h3>🤖 Terminal IA (Gemini API Real)</h3>
+            <div style="margin-bottom: 8px; display: flex; gap: 6px;">
+                <input type="password" id="gemini-key" placeholder="Insere tua Gemini API Key..." style="flex:1; background:#030712; border:1px solid #1f2937; color:#fff; padding:6px; border-radius:4px; font-size:0.75rem;">
+                <button onclick="saveApiKey()" style="padding: 0 10px; font-size: 0.75rem;">Salvar</button>
+            </div>
+            <div class="chat-box" id="chat-messages">
+                <div class="message ai">NEXA Omni pronto. Insere a tua chave, clica em Salvar e envia um comando para falar com a Gemini.</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="user-input" placeholder="Digite seu comando para a IA...">
+                <button onclick="sendGeminiMessage()">Enviar</button>
+            </div>
+        </section>
+
+        <section class="omni-section">
+            <h3>⚡ Gestão de Webhooks</h3>
+            <button onclick="triggerWebhook()" style="width:100%; margin-bottom:8px;">Testar Webhook Manual</button>
+            <pre id="webhook-log">Aguardando eventos...</pre>
+        </section>
+
+        <section class="omni-section">
+            <h3>📋 Tarefas Táticas</h3>
+            <div class="kanban-row">
+                <div class="kanban-box">
+                    <h4>A Fazer</h4>
+                    <ul><li>Configurar Supabase</li></ul>
+                </div>
+                <div class="kanban-box">
+                    <h4>Em Progresso</h4>
+                    <ul><li>API Gemini Real</li></ul>
+                </div>
+                <div class="kanban-box">
+                    <h4>Concluído</h4>
+                    <ul><li>Painel Único Omni</li></ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="omni-section">
+            <h3>🛠️ Utilitários de Sistema</h3>
+            <button onclick="runSystemCheck()" style="width:100%; margin-bottom:8px;">Executar Diagnóstico</button>
+            <div id="util-output" class="terminal-output">Pronto para diagnóstico.</div>
+        </section>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

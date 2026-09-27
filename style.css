@@ -1,0 +1,23 @@
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
+body { background: #0b0f19; color: #00ffcc; padding: 10px; font-size: 13px; }
+.omni-container { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.omni-header { background: #111827; padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #1f2937; }
+.omni-header h2 { font-size: 1rem; color: #fff; }
+.badge-online { font-size: 0.75rem; color: #10b981; font-weight: bold; }
+.omni-section { background: #111827; border: 1px solid #1f2937; padding: 12px; border-radius: 6px; }
+.omni-section h3 { font-size: 0.85rem; color: #9ca3af; margin-bottom: 8px; text-transform: uppercase; }
+.cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.card { background: #1f2937; padding: 8px; border-radius: 4px; font-size: 0.75rem; text-align: center; }
+.card b { display: block; color: #00ffcc; margin-top: 2px; }
+.chat-box { background: #030712; border: 1px solid #1f2937; height: 160px; border-radius: 4px; padding: 8px; overflow-y: auto; margin-bottom: 8px; font-size: 0.8rem; }
+.message { margin-bottom: 6px; padding: 6px 8px; border-radius: 4px; max-width: 85%; }
+.message.ai { background: #1f2937; color: #00ffcc; }
+.chat-input-area { display: flex; gap: 6px; }
+.chat-input-area input { flex: 1; background: #030712; border: 1px solid #1f2937; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.8rem; }
+button { background: #00ffcc; color: #030712; border: none; padding: 8px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+pre, .terminal-output { background: #030712; border: 1px solid #1f2937; padding: 8px; border-radius: 4px; font-size: 0.75rem; color: #10b981; overflow-x: auto; }
+.kanban-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.kanban-box { background: #030712; padding: 8px; border-radius: 4px; border: 1px solid #1f2937; }
+.kanban-box h4 { font-size: 0.75rem; color: #fff; margin-bottom: 4px; }
+.kanban-box ul { list-style: none; }
+.kanban-box li { background: #111827; padding: 4px 6px; margin-bottom: 4px; border-radius: 3px; font-size: 0.7rem; }
