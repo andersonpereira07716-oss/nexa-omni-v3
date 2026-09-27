@@ -48,13 +48,13 @@ async function sendGeminiMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     try {
-        // Tenta primeiro o modelo principal
+        // Tenta o modelo principal atual
         let data = await callGeminiAPI(apiKey, userText, 'gemini-3.8-flash');
 
-        // Se der erro de alta procura, tenta o fallback automático
-        if (data.error && (data.error.code === 429 || data.error.message.includes('high demand'))) {
-            document.getElementById(loadingId).innerText = "Alta procura detetada, a alternar rota...";
-            data = await callGeminiAPI(apiKey, userText, 'gemini-1.5-flash');
+        // Se houver pico/indisponibilidade, tenta o fallback estável correspondente
+        if (data.error) {
+            document.getElementById(loadingId).innerText = "A alternar para rota de alta estabilidade...";
+            data = await callGeminiAPI(apiKey, userText, 'gemini-3.5-flash');
         }
 
         document.getElementById(loadingId).remove();
