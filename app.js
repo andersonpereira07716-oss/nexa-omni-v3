@@ -41,18 +41,22 @@ async function sendGeminiMessage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: userText }] }]
+                contents: [{
+                    parts: [{ text: userText }]
+                }]
             })
         });
 
         const data = await response.json();
         document.getElementById(loadingId).remove();
 
-        if(data.candidates && data.candidates[0].content.parts[0].text) {
+        if (data.error) {
+            chatBox.innerHTML += `<div class="message ai" style="color:#ef4444;">Erro da API: ${data.error.message || 'Erro desconhecido'}</div>`;
+        } else if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
             const aiReply = data.candidates[0].content.parts[0].text;
             chatBox.innerHTML += `<div class="message ai">${aiReply}</div>`;
         } else {
-            chatBox.innerHTML += `<div class="message ai" style="color:#ef4444;">Erro na resposta da API Gemini. Verifica a chave.</div>`;
+            chatBox.innerHTML += `<div class="message ai" style="color:#ef4444;">Resposta inesperada da API.</div>`;
         }
     } catch (error) {
         document.getElementById(loadingId).remove();
