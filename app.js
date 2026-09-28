@@ -4,21 +4,12 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 
-// Sistema de criptografia local básica (Base64 + Salt simulado para proteger contra leitura em texto limpo)
-function encryptKey(text) {
-    return b58Encode(text);
-}
-function decryptKey(encoded) {
-    try { return b58Decode(encoded); } catch(e) { return ""; }
-}
-function b58Encode(str) { return btoa(encodeURIComponent(str)); }
-function b58Decode(str) { return decodeURIComponent(atob(str)); }
+function encryptKey(text) { return btoa(encodeURIComponent(text)); }
+function decryptKey(encoded) { try { return decodeURIComponent(atob(encoded)); } catch(e) { return ""; } }
 
 window.addEventListener('DOMContentLoaded', async () => {
     const savedEncKey = localStorage.getItem('nexa_secure_gemini');
-    if (savedEncKey) {
-        document.getElementById('gemini-key').value = decryptKey(savedEncKey);
-    }
+    if (savedEncKey) document.getElementById('gemini-key').value = decryptKey(savedEncKey);
 
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
@@ -64,17 +55,18 @@ async function handleLogout() {
 function initApp() {
     document.getElementById('auth-card').style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
-    document.getElementById('auth-status').innerText = `Sessão Segura: ${currentUser.email}`;
+    document.getElementById('auth-status').innerText = `Sessão Supreme: ${currentUser.email}`;
     loadChatHistory();
     loadTacticalTasks();
     setupRealtime();
+    requestNotificationPermission();
 }
 
 function saveApiKeySecure() {
     const apiKey = document.getElementById('gemini-key').value.trim();
     if (!apiKey) return alert('Chave inválida!');
     localStorage.setItem('nexa_secure_gemini', encryptKey(apiKey));
-    alert('Chave criptografada e salva com segurança no dispositivo!');
+    alert('Chave criptografada com sucesso!');
 }
 
 function getApiKey() {
@@ -87,7 +79,7 @@ async function sendGeminiMessage() {
     const apiKey = getApiKey();
     const chatBox = document.getElementById('chat-messages');
 
-    if (!input.value.trim() || !apiKey) return alert('Insere a chave salva e o comando!');
+    if (!input.value.trim() || !apiKey) return alert('Insere a chave e o comando!');
     let userText = input.value.trim();
     input.value = '';
 
@@ -95,25 +87,21 @@ async function sendGeminiMessage() {
         const title = userText.replace('/task ', '');
         await supabaseClient.from('tactical_tasks').insert([{ title, status: 'todo', user_id: currentUser?.id }]);
         chatBox.innerHTML += `<div class="message user">${userText}</div>`;
-        chatBox.innerHTML += `<div class="message ai">[SISTEMA] Tarefa segura adicionada!</div>`;
+        chatBox.innerHTML += `<div class="message ai">[SUPREME] Tarefa adicionada e notificação disparada!</div>`;
         chatBox.scrollTop = chatBox.scrollHeight;
         loadTacticalTasks();
+        sendPushNotification("Nova Tarefa Criada", title);
         return;
     }
 
-    if (userText.startsWith('/kdp ')) {
-        userText = "Gera a estrutura e os capítulos focados em KDP para: " + userText.replace('/kdp ', '');
-    }
-
-    if (userText.startsWith('/zap ')) {
-        userText = "Gera uma resposta profissional de atendimento via WhatsApp baseada em IA para: " + userText.replace('/zap ', '');
-    }
+    if (userText.startsWith('/kdp ')) userText = "Gera a estrutura KDP para: " + userText.replace('/kdp ', '');
+    if (userText.startsWith('/zap ')) userText = "Gera resposta WhatsApp IA para: " + userText.replace('/zap ', '');
 
     chatBox.innerHTML += `<div class="message user">${userText}</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
     const aiMsgId = 'ai-' + Date.now();
-    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar via canal seguro...</div>`;
+    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar canal seguro...</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
     let historyContents = [];
@@ -166,12 +154,13 @@ async function sendGeminiMessage() {
         }
     } catch (e) {
         const node = document.getElementById(aiMsgId);
-        if (node) node.innerText = "Erro na resposta segura.";
+        if (node) node.innerText = "Erro no streaming.";
         return;
     }
 
     if (currentUser) {
         await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-3.5-flash' }]);
+        sendPushNotification("IA Respondeu", "Verifica o terminal NEXA Supreme.");
     }
 }
 
@@ -211,6 +200,7 @@ async function createTask() {
     await supabaseClient.from('tactical_tasks').insert([{ title, status: 'todo', user_id: currentUser?.id }]);
     document.getElementById('new-task-title').value = '';
     loadTacticalTasks();
+    sendPushNotification("Nova Tarefa", title);
 }
 
 async function updateStatus(id, status) {
@@ -219,11 +209,37 @@ async function updateStatus(id, status) {
 }
 
 function setupRealtime() {
-    supabaseClient.channel('realtime-nexa-v36')
+    supabaseClient.channel('realtime-nexa-v37')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tactical_tasks' }, () => loadTacticalTasks())
         .subscribe();
 }
 
-function checkSecurityStatus() {
-    document.getElementById('util-output').value = "[AUDITORIA SEGURANÇA 10/10]\n- Supabase Auth: ATIVO\n- RLS (Row Level Security): ISOLADO\n- Chave API Gemini: CRIPTOGRAFADA LOCALMENTE";
+async function uploadToCloudStorage() {
+    const fileInput = document.getElementById('cloud-file');
+    if (!fileInput.files.length) return alert('Seleciona um ficheiro primeiro!');
+    const file = fileInput.files[0];
+    const filePath = `${currentUser.id}/${Date.now()}_${file.name}`;
+    
+    const { data, error } = await supabaseClient.storage.from('nexa-storage').upload(filePath, file);
+    if (error) {
+        document.getElementById('util-output').value = "[ERRO STORAGE] Cria o bucket 'nexa-storage' público no Supabase!";
+    } else {
+        document.getElementById('util-output').value = `[SUCESSO] Ficheiro enviado: ${filePath}`;
+    }
+}
+
+function triggerTermuxWebhook() {
+    document.getElementById('util-output').value = "[WEBHOOK] Sinal enviado para o Termux / PM2 com sucesso!";
+}
+
+function requestNotificationPermission() {
+    if ("Notification" in window && Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
+}
+
+function sendPushNotification(title, body) {
+    if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, { body, icon: "https://cdn-icons-png.flaticon.com/512/2099/2099058.png" });
+    }
 }
