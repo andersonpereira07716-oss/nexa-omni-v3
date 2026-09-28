@@ -103,13 +103,12 @@ async function sendGeminiMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     const aiMsgId = 'ai-' + Date.now();
-    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar com Gemini 2.5 Flash...</div>`;
+    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar com Gemini 3.8 Flash...</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
     let aiReply = "";
     try {
-        // Atualizado para o modelo gemini-2.5-flash com endpoint nativo do Google AI Studio
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -134,7 +133,7 @@ async function sendGeminiMessage() {
     }
 
     if (currentUser && aiReply) {
-        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-2.5-flash' }]);
+        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-3.8-flash' }]);
         sendPushNotification("IA Respondeu", "Verifica o terminal NEXA Supreme.");
     }
 }
