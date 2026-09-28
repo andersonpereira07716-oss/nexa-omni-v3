@@ -24,10 +24,20 @@ async function sendGeminiMessage() {
     const chatBox = document.getElementById('chat-messages');
 
     if (!input.value.trim() || !apiKey) return alert('Verifica a chave e o texto!');
-    const userText = input.value;
+    let userText = input.value.trim();
     input.value = '';
 
-    // Adiciona imediatamente a mensagem do utilizador ao chat local
+    // Ação inteligente: se começar com /task, cria direto no Kanban
+    if (userText.startsWith('/task ')) {
+        const taskTitle = userText.replace('/task ', '');
+        await supabaseClient.from('tactical_tasks').insert([{ title: taskTitle, status: 'todo' }]);
+        chatBox.innerHTML += `<div class="message user">${userText}</div>`;
+        chatBox.innerHTML += `<div class="message ai">[SISTEMA] Tarefa "${taskTitle}" criada automaticamente no Kanban!</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+        loadTacticalTasks();
+        return;
+    }
+
     chatBox.innerHTML += `<div class="message user">${userText}</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -78,16 +88,14 @@ async function sendGeminiMessage() {
     } catch (e) {
         const node = document.getElementById(aiMsgId);
         if (node) node.innerText = "Erro no streaming da IA.";
-        console.error(e);
         return;
     }
 
-    // Grava de forma segura na base de dados sem recarregar o histórico inteiro bruscamente
     await supabaseClient.from('chat_history').insert([{ prompt: userText, response: aiReply, model_used: 'gemini-3.5-flash' }]);
 }
 
 async function loadChatHistory() {
-    const { data } = await supabaseClient.from('chat_history').select('*').order('created_at', { ascending: true }).limit(15);
+    const { data } = await supabaseClient.from('chat_history').select('*').order('created_at', { ascending: true }).limit(10);
     if (!data) return;
     const chatBox = document.getElementById('chat-messages');
     chatBox.innerHTML = '';
@@ -130,15 +138,15 @@ async function updateStatus(id, status) {
 }
 
 function setupRealtime() {
-    supabaseClient.channel('realtime-nexa-v32')
+    supabaseClient.channel('realtime-nexa-v33')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tactical_tasks' }, () => loadTacticalTasks())
         .subscribe();
 }
 
-function generatePythonKdpScript() {
-    document.getElementById('util-output').value = `import reportlab\nfrom reportlab.pdfgen import canvas\n\ndef criar_livro():\n    pdf = canvas.Canvas("livro_kdp.pdf")\n    pdf.drawString(100, 750, "NEXA Automated Publishing KDP")\n    pdf.save()\n\nif __name__ == "__main__":\n    criar_livro()`;
+function generateMasterKdpScript() {
+    document.getElementById('util-output').value = `import reportlab\nfrom reportlab.lib.pagesizes import letter\nfrom reportlab.pdfgen import canvas\n\ndef gerar_kdp_master():\n    pdf = canvas.Canvas("ebook_master.pdf", pagesize=letter)\n    pdf.drawString(72, 720, "NEXA Master KDP Automated Engine")\n    pdf.save()\n\nif __name__ == "__main__":\n    gerar_kdp_master()`;
 }
 
-function generatePm2WhatsappScript() {
-    document.getElementById('util-output').value = `// ecosystem.config.js para PM2 & WhatsApp Web\nmodule.exports = {\n  apps: [{\n    name: "AtendePro-AI",\n    script: "./bot.js",\n    env: { NODE_ENV: "production" }\n  }]\n};`;
+function generatePwaManifest() {
+    document.getElementById('util-output').value = `{\n  "name": "NEXA v3.3 Master",\n  "short_name": "NEXA",\n  "start_url": "/",\n  "display": "standalone",\n  "background_color": "#030712",\n  "theme_color": "#00ffcc"\n}`;
 }
