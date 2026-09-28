@@ -103,70 +103,38 @@ async function sendGeminiMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     const aiMsgId = 'ai-' + Date.now();
-    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar canal seguro...</div>`;
+    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar canal seguro (Standard)...</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
-
-    let historyContents = [];
-    const { data: pastChats } = await supabaseClient.from('chat_history').select('prompt, response').eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(5);
-    if (pastChats) {
-        pastChats.reverse().forEach(c => {
-            historyContents.push({ role: "user", parts: [{ text: c.prompt }] });
-            historyContents.push({ role: "model", parts: [{ text: c.response }] });
-        });
-    }
-    historyContents.push({ role: "user", parts: [{ text: userText }] });
 
     let aiReply = "";
     try {
-        // Trocado para o modelo gemini-1.5-pro que aceita chaves padrão com maior flexibilidade
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:streamGenerateContent?key=${apiKey}&alt=sse`, {
+        // Mudança para o endpoint padrão de generateContent (sem SSE/streaming para garantir estabilidade absoluta)
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: historyContents })
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: userText }] }]
+            })
         });
 
-        if (!res.ok) {
-            throw new Error("Erro HTTP: " + res.status);
-        }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        const aiNode = document.getElementById(aiMsgId);
-        if (aiNode) aiNode.innerText = "";
-
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop();
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const jsonStr = line.replace('data: ', '').trim();
-                    if (jsonStr) {
-                        const parsed = JSON.parse(jsonStr);
-                        const chunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (chunk) {
-                            aiReply += chunk;
-                            const node = document.getElementById(aiMsgId);
-                            if (node) {
-                                node.innerText = aiReply;
-                                chatBox.scrollTop = chatBox.scrollHeight;
-                            }
-                        }
-                    }
-                }
-            }
+        const data = await res.json();
+        
+        if (data.candidates && data.candidates[0].content) {
+            aiReply = data.candidates[0].content.parts[0].text;
+            const node = document.getElementById(aiMsgId);
+            if (node) node.innerText = aiReply;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        } else {
+            throw new Error(data.error?.message || "Resposta inválida da API");
         }
     } catch (e) {
         const node = document.getElementById(aiMsgId);
-        if (node) node.innerText = "[ERRO] Falha na ligação com a API Pro. Verifica se a chave corresponde ao Google AI Studio.";
+        if (node) node.innerText = "[ERRO] " + e.message;
         return;
     }
 
     if (currentUser && aiReply) {
-        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-1.5-pro' }]);
+        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-1.5-flash-standard' }]);
         sendPushNotification("IA Respondeu", "Verifica o terminal NEXA Supreme.");
     }
 }
