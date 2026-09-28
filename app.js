@@ -1,15 +1,23 @@
 const SUPABASE_URL = "https://aqqhpttbmoiovlbfhqqr.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxcWhwdHRibW9pb3ZsYmZocXFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1NDExNzYsImV4cCI6MjEwNjExNzE3Nn0.gvz_KzuS0Z--DzI0kfgtW4QjcHPlgb_iBdrHB1iKw8o";
 
+// CHAVE GEMINI FIXA E SEGURA DO UTILIZADOR
+const FIXED_GEMINI_KEY = "SUA_CHAVE_AQUI_COLE_A_SUA_CHAVE_CORRETA";
+
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
 
-function encryptKey(text) { return btoa(encodeURIComponent(text)); }
-function decryptKey(encoded) { try { return decodeURIComponent(atob(encoded)); } catch(e) { return ""; } }
-
 window.addEventListener('DOMContentLoaded', async () => {
-    const savedEncKey = localStorage.getItem('nexa_secure_gemini');
-    if (savedEncKey) document.getElementById('gemini-key').value = decryptKey(savedEncKey);
+    // Insere automaticamente a chave correta no campo ao carregar
+    if (FIXED_GEMINI_KEY && FIXED_GEMINI_KEY !== "SUA_CHAVE_AQUI_COLE_A_SUA_CHAVE_CORRETA") {
+        document.getElementById('gemini-key').value = FIXED_GEMINI_KEY;
+        localStorage.setItem('nexa_secure_gemini', btoa(encodeURIComponent(FIXED_GEMINI_KEY)));
+    } else {
+        const savedEncKey = localStorage.getItem('nexa_secure_gemini');
+        if (savedEncKey) {
+            try { document.getElementById('gemini-key').value = decodeURIComponent(atob(savedEncKey)); } catch(e) {}
+        }
+    }
 
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
@@ -65,13 +73,15 @@ function initApp() {
 function saveApiKeySecure() {
     const apiKey = document.getElementById('gemini-key').value.trim();
     if (!apiKey) return alert('Chave inválida!');
-    localStorage.setItem('nexa_secure_gemini', encryptKey(apiKey));
+    localStorage.setItem('nexa_secure_gemini', btoa(encodeURIComponent(apiKey)));
     alert('Chave criptografada com sucesso!');
 }
 
 function getApiKey() {
+    const apiKeyField = document.getElementById('gemini-key').value.trim();
+    if (apiKeyField) return apiKeyField;
     const saved = localStorage.getItem('nexa_secure_gemini');
-    return saved ? decryptKey(saved) : "";
+    return saved ? decodeURIComponent(atob(saved)) : "";
 }
 
 async function sendGeminiMessage() {
@@ -116,7 +126,7 @@ async function sendGeminiMessage() {
 
     let aiReply = "";
     try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: historyContents })
@@ -159,7 +169,7 @@ async function sendGeminiMessage() {
     }
 
     if (currentUser) {
-        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-3.5-flash' }]);
+        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-2.5-flash' }]);
         sendPushNotification("IA Respondeu", "Verifica o terminal NEXA Supreme.");
     }
 }
@@ -194,7 +204,7 @@ async function loadTacticalTasks() {
     });
 }
 
-async function createTask() {
+async::createTask = async function() {
     const title = document.getElementById('new-task-title').value.trim();
     if (!title) return;
     await supabaseClient.from('tactical_tasks').insert([{ title, status: 'todo', user_id: currentUser?.id }]);
