@@ -1,4 +1,3 @@
-// Configuração do Supabase
 const SUPABASE_URL = "https://aqqhpttbmoiovlbfhqqr.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxcWhwdHRibW9pb3ZsYmZocXFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1NDExNzYsImV4cCI6MjEwNjExNzE3Nn0.gvz_KzuS0Z--DzI0kfgtW4QjcHPlgb_iBdrHB1iKw8o";
 
@@ -9,8 +8,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (savedKey) {
         document.getElementById('gemini-key').value = savedKey;
     }
-    
-    // Carregar histórico recente do Supabase se houver sessão ativa
     await loadChatHistory();
 });
 
@@ -57,14 +54,15 @@ async function sendGeminiMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     let aiReply = "";
-    let usedModel = "gemini-3.8-flash";
+    // Iniciar diretamente com o modelo 3.5-flash para evitar bloqueios de alta procura do 3.8
+    let usedModel = "gemini-3.5-flash";
 
     try {
         let data = await callGeminiAPI(apiKey, userText, usedModel);
 
         if (data.error) {
-            document.getElementById(loadingId).innerText = "A alternar para rota de alta estabilidade...";
-            usedModel = "gemini-3.5-flash";
+            document.getElementById(loadingId).innerText = "A tentar rota alternativa...";
+            usedModel = "gemini-1.5-flash";
             data = await callGeminiAPI(apiKey, userText, usedModel);
         }
 
@@ -88,7 +86,6 @@ async function sendGeminiMessage() {
 
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    // Persistir no Supabase se houver utilizador autenticado
     try {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (user) {
@@ -115,7 +112,7 @@ async function loadChatHistory() {
         if (error || !data) return;
 
         const chatBox = document.getElementById('chat-messages');
-        chatBox.innerHTML = ''; // Limpa e carrega histórico persistido
+        chatBox.innerHTML = '';
 
         data.forEach(item => {
             chatBox.innerHTML += `<div class="message" style="margin-left:auto; background:#00ffcc; color:#030712; margin-bottom:6px; padding:6px 8px; border-radius:4px; max-width:85%;">${item.prompt}</div>`;
