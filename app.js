@@ -103,29 +103,33 @@ async function sendGeminiMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     const aiMsgId = 'ai-' + Date.now();
-    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar com Gemini 2.0...</div>`;
+    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar via Gemini Core...</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
     let aiReply = "";
     try {
-        // Atualizado para o modelo gemini-2.0-flash com rota padrão de alta estabilidade
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        // Utilizando o endpoint compatível do Google para máxima estabilidade em fetch web
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: userText }] }]
+                model: "gemini-2.5-flash",
+                messages: [{ role: "user", content: userText }]
             })
         });
 
         const data = await res.json();
         
-        if (data.candidates && data.candidates[0].content) {
-            aiReply = data.candidates[0].content.parts[0].text;
+        if (data.choices && data.choices[0].message) {
+            aiReply = data.choices[0].message.content;
             const node = document.getElementById(aiMsgId);
             if (node) node.innerText = aiReply;
             chatBox.scrollTop = chatBox.scrollHeight;
         } else {
-            throw new Error(data.error?.message || "Resposta inválida da API");
+            throw new Error(data.error?.message || "Resposta inválida do serviço Gemini");
         }
     } catch (e) {
         const node = document.getElementById(aiMsgId);
@@ -134,7 +138,7 @@ async function sendGeminiMessage() {
     }
 
     if (currentUser && aiReply) {
-        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-2.0-flash' }]);
+        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-2.5-flash-openai' }]);
         sendPushNotification("IA Respondeu", "Verifica o terminal NEXA Supreme.");
     }
 }
