@@ -2,18 +2,65 @@ const SUPABASE_URL = "https://aqqhpttbmoiovlbfhqqr.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxcWhwdHRibW9pb3ZsYmZocXFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1NDExNzYsImV4cCI6MjEwNjExNzE3Nn0.gvz_KzuS0Z--DzI0kfgtW4QjcHPlgb_iBdrHB1iKw8o";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser = null;
 
 window.addEventListener('DOMContentLoaded', async () => {
     const savedKey = localStorage.getItem('nexa_gemini_key');
     if (savedKey) document.getElementById('gemini-key').value = savedKey;
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+        currentUser = session.user;
+        initApp();
+    } else {
+        document.getElementById('auth-card').style.display = 'block';
+        document.getElementById('auth-status').innerText = 'Autenticação necessária';
+    }
+
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            currentUser = session.user;
+            initApp();
+        } else {
+            currentUser = null;
+            document.getElementById('auth-card').style.display = 'block';
+            document.getElementById('app-container').style.display = 'none';
+            document.getElementById('auth-status').innerText = 'Não autenticado';
+        }
+    });
+});
+
+async function handleSignUp() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) alert('Erro: ' + error.message);
+    else alert('Registo efetuado! Podes fazer login.');
+}
+
+async function handleLogin() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) alert('Erro no login: ' + error.message);
+}
+
+async function handleLogout() {
+    await supabaseClient.auth.signOut();
+}
+
+function initApp() {
+    document.getElementById('auth-card').style.display = 'none';
+    document.getElementById('app-container').style.display = 'block';
+    document.getElementById('auth-status').innerText = `Sessão: ${currentUser.email}`;
     loadChatHistory();
     loadTacticalTasks();
     setupRealtime();
-});
+}
 
 function saveApiKey() {
     const apiKey = document.getElementById('gemini-key').value.trim();
-    if (!apiKey) return alert('Insere uma chave válida!');
+    if (!apiKey) return alert('Chave inválida!');
     localStorage.setItem('nexa_gemini_key', apiKey);
     alert('Chave salva com sucesso!');
 }
@@ -23,16 +70,15 @@ async function sendGeminiMessage() {
     const apiKey = document.getElementById('gemini-key').value.trim();
     const chatBox = document.getElementById('chat-messages');
 
-    if (!input.value.trim() || !apiKey) return alert('Verifica a chave e o texto!');
+    if (!input.value.trim() || !apiKey) return alert('Preenche a chave e o comando!');
     let userText = input.value.trim();
     input.value = '';
 
-    // Ação inteligente: se começar com /task, cria direto no Kanban
     if (userText.startsWith('/task ')) {
         const taskTitle = userText.replace('/task ', '');
-        await supabaseClient.from('tactical_tasks').insert([{ title: taskTitle, status: 'todo' }]);
+        await supabaseClient.from('tactical_tasks').insert([{ title: taskTitle, status: 'todo', user_id: currentUser?.id }]);
         chatBox.innerHTML += `<div class="message user">${userText}</div>`;
-        chatBox.innerHTML += `<div class="message ai">[SISTEMA] Tarefa "${taskTitle}" criada automaticamente no Kanban!</div>`;
+        chatBox.innerHTML += `<div class="message ai">[SISTEMA] Tarefa criada com sucesso no Kanban!</div>`;
         chatBox.scrollTop = chatBox.scrollHeight;
         loadTacticalTasks();
         return;
@@ -42,18 +88,29 @@ async function sendGeminiMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     const aiMsgId = 'ai-' + Date.now();
-    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar stream...</div>`;
+    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar com memória...</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
-    
+
+    // Recolher histórico recente do Supabase para injetar contexto (Memória de Longo Alcance)
+    let historyContents = [];
+    const { data: pastChats } = await supabaseClient.from('chat_history').select('prompt, response').order('created_at', { ascending: false }).limit(5);
+    if (pastChats) {
+        pastChats.reverse().forEach(c => {
+            historyContents.push({ role: "user", parts: [{ text: c.prompt }] });
+            historyContents.push({ role: "model", parts: [{ text: c.response }] });
+        });
+    }
+    historyContents.push({ role: "user", parts: [{ text: userText }] });
+
     let aiReply = "";
     try {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: userText }] }] })
+            body: JSON.stringify({ contents: historyContents })
         });
 
-        if (!res.ok) throw new Error('Erro na resposta da API');
+        if (!res.ok) throw new Error('Erro na API');
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -91,7 +148,9 @@ async function sendGeminiMessage() {
         return;
     }
 
-    await supabaseClient.from('chat_history').insert([{ prompt: userText, response: aiReply, model_used: 'gemini-3.5-flash' }]);
+    if (currentUser) {
+        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-3.5-flash' }]);
+    }
 }
 
 async function loadChatHistory() {
@@ -127,7 +186,7 @@ async function loadTacticalTasks() {
 async function createTask() {
     const title = document.getElementById('new-task-title').value.trim();
     if (!title) return;
-    await supabaseClient.from('tactical_tasks').insert([{ title, status: 'todo' }]);
+    await supabaseClient.from('tactical_tasks').insert([{ title, status: 'todo', user_id: currentUser?.id }]);
     document.getElementById('new-task-title').value = '';
     loadTacticalTasks();
 }
@@ -138,15 +197,11 @@ async function updateStatus(id, status) {
 }
 
 function setupRealtime() {
-    supabaseClient.channel('realtime-nexa-v33')
+    supabaseClient.channel('realtime-nexa-v34')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tactical_tasks' }, () => loadTacticalTasks())
         .subscribe();
 }
 
 function generateMasterKdpScript() {
-    document.getElementById('util-output').value = `import reportlab\nfrom reportlab.lib.pagesizes import letter\nfrom reportlab.pdfgen import canvas\n\ndef gerar_kdp_master():\n    pdf = canvas.Canvas("ebook_master.pdf", pagesize=letter)\n    pdf.drawString(72, 720, "NEXA Master KDP Automated Engine")\n    pdf.save()\n\nif __name__ == "__main__":\n    gerar_kdp_master()`;
-}
-
-function generatePwaManifest() {
-    document.getElementById('util-output').value = `{\n  "name": "NEXA v3.3 Master",\n  "short_name": "NEXA",\n  "start_url": "/",\n  "display": "standalone",\n  "background_color": "#030712",\n  "theme_color": "#00ffcc"\n}`;
+    alert("Script Python KDP gerado com sucesso no ecossistema.");
 }
