@@ -118,8 +118,8 @@ async function sendGeminiMessage() {
 
     let aiReply = "";
     try {
-        // Atualizado para o modelo padrão universal garantido
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`, {
+        // Trocado para o modelo gemini-1.5-pro que aceita chaves padrão com maior flexibilidade
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:streamGenerateContent?key=${apiKey}&alt=sse`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: historyContents })
@@ -161,12 +161,12 @@ async function sendGeminiMessage() {
         }
     } catch (e) {
         const node = document.getElementById(aiMsgId);
-        if (node) node.innerText = "[ERRO] Falha na ligação com a API. Verifica se a chave é válida.";
+        if (node) node.innerText = "[ERRO] Falha na ligação com a API Pro. Verifica se a chave corresponde ao Google AI Studio.";
         return;
     }
 
     if (currentUser && aiReply) {
-        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-1.5-flash' }]);
+        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-1.5-pro' }]);
         sendPushNotification("IA Respondeu", "Verifica o terminal NEXA Supreme.");
     }
 }
