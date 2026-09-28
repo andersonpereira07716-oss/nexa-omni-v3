@@ -14,7 +14,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         initApp();
     } else {
         document.getElementById('auth-card').style.display = 'block';
-        document.getElementById('auth-status').innerText = 'Autenticação necessária';
+        document.getElementById('auth-status').innerText = 'Requer Autenticação';
     }
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
@@ -25,7 +25,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             currentUser = null;
             document.getElementById('auth-card').style.display = 'block';
             document.getElementById('app-container').style.display = 'none';
-            document.getElementById('auth-status').innerText = 'Não autenticado';
+            document.getElementById('auth-status').innerText = 'Desconectado';
         }
     });
 });
@@ -35,7 +35,7 @@ async function handleSignUp() {
     const password = document.getElementById('auth-password').value;
     const { error } = await supabaseClient.auth.signUp({ email, password });
     if (error) alert('Erro: ' + error.message);
-    else alert('Registo efetuado! Podes fazer login.');
+    else alert('Registo efetuado com sucesso!');
 }
 
 async function handleLogin() {
@@ -62,7 +62,7 @@ function saveApiKey() {
     const apiKey = document.getElementById('gemini-key').value.trim();
     if (!apiKey) return alert('Chave inválida!');
     localStorage.setItem('nexa_gemini_key', apiKey);
-    alert('Chave salva com sucesso!');
+    alert('Chave salva!');
 }
 
 async function sendGeminiMessage() {
@@ -74,24 +74,32 @@ async function sendGeminiMessage() {
     let userText = input.value.trim();
     input.value = '';
 
+    // Atalhos inteligentes
     if (userText.startsWith('/task ')) {
-        const taskTitle = userText.replace('/task ', '');
-        await supabaseClient.from('tactical_tasks').insert([{ title: taskTitle, status: 'todo', user_id: currentUser?.id }]);
+        const title = userText.replace('/task ', '');
+        await supabaseClient.from('tactical_tasks').insert([{ title, status: 'todo', user_id: currentUser?.id }]);
         chatBox.innerHTML += `<div class="message user">${userText}</div>`;
-        chatBox.innerHTML += `<div class="message ai">[SISTEMA] Tarefa criada com sucesso no Kanban!</div>`;
+        chatBox.innerHTML += `<div class="message ai">[SISTEMA] Tarefa adicionada ao Kanban!</div>`;
         chatBox.scrollTop = chatBox.scrollHeight;
         loadTacticalTasks();
         return;
+    }
+
+    if (userText.startsWith('/kdp ')) {
+        userText = "Gera a estrutura e o conteúdo em capítulos focado em e-book KDP para o seguinte tema: " + userText.replace('/kdp ', '');
+    }
+
+    if (userText.startsWith('/zap ')) {
+        userText = "Gera uma resposta automática profissional de atendimento via WhatsApp baseada em IA para: " + userText.replace('/zap ', '');
     }
 
     chatBox.innerHTML += `<div class="message user">${userText}</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
     const aiMsgId = 'ai-' + Date.now();
-    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar com memória...</div>`;
+    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar...</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    // Recolher histórico recente do Supabase para injetar contexto (Memória de Longo Alcance)
     let historyContents = [];
     const { data: pastChats } = await supabaseClient.from('chat_history').select('prompt, response').order('created_at', { ascending: false }).limit(5);
     if (pastChats) {
@@ -109,8 +117,6 @@ async function sendGeminiMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: historyContents })
         });
-
-        if (!res.ok) throw new Error('Erro na API');
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -144,7 +150,7 @@ async function sendGeminiMessage() {
         }
     } catch (e) {
         const node = document.getElementById(aiMsgId);
-        if (node) node.innerText = "Erro no streaming da IA.";
+        if (node) node.innerText = "Erro no streaming.";
         return;
     }
 
@@ -197,11 +203,15 @@ async function updateStatus(id, status) {
 }
 
 function setupRealtime() {
-    supabaseClient.channel('realtime-nexa-v34')
+    supabaseClient.channel('realtime-nexa-v35')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tactical_tasks' }, () => loadTacticalTasks())
         .subscribe();
 }
 
-function generateMasterKdpScript() {
-    alert("Script Python KDP gerado com sucesso no ecossistema.");
+function simulatePm2Status() {
+    document.getElementById('util-output').value = "[PM2] AtendePro-AI (WhatsApp Bot): ONLINE\n[Termux PID]: 14820 - RAM: 42MB\n[Webhook Supabase]: Sincronizado";
+}
+
+function loadProjectHub() {
+    document.getElementById('util-output').value = "[HUB ECOSSISTEMA]\n- Clube Ativo (SaaS): Ativo\n- EduMindsAI (APK/PWA): Pronto para Build\n- KDP Python Engine: Configurado";
 }

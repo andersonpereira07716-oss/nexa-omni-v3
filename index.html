@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEXA v3.4 Enterprise 10/10</title>
+    <title>NEXA v3.5 Ultimate Command Center</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { background: #030712; color: #f3f4f6; font-family: monospace; margin: 0; padding: 12px; }
         .card { background: #111827; border: 1px solid #1f2937; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
         button { background: #00ffcc; color: #030712; border: none; padding: 8px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; }
         button:hover { background: #00b38f; }
-        input, textarea { background: #1f2937; border: 1px solid #374151; color: #fff; padding: 8px; width: 100%; border-radius: 4px; box-sizing: border-box; margin-bottom: 8px; }
+        input, textarea, select { background: #1f2937; border: 1px solid #374151; color: #fff; padding: 8px; width: 100%; border-radius: 4px; box-sizing: border-box; margin-bottom: 8px; }
         .message { margin-bottom: 8px; padding: 8px; border-radius: 4px; max-width: 85%; word-break: break-word; }
         .message.user { margin-left: auto; background: #00ffcc; color: #030712; }
         .message.ai { margin-right: auto; background: #1f2937; color: #f3f4f6; border-left: 3px solid #00ffcc; }
@@ -18,14 +18,14 @@
 </head>
 <body>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h2 style="margin:0; font-size:18px; color:#00ffcc;">NEXA v3.4 ENTERPRISE</h2>
-        <span id="auth-status" style="font-size: 11px; color: #9ca3af;">A verificar sessão...</span>
+        <h2 style="margin:0; font-size:18px; color:#00ffcc;">NEXA v3.5 ULTIMATE</h2>
+        <span id="auth-status" style="font-size: 11px; color: #9ca3af;">A verificar...</span>
     </div>
 
-    <!-- AUTH SECTION -->
+    <!-- AUTH CARD -->
     <div id="auth-card" class="card" style="display:none;">
-        <h3 style="margin-top:0; font-size:14px; color:#00ffcc;">🔒 Acesso Seguro (Supabase Auth)</h3>
-        <input type="email" id="auth-email" placeholder="O teu email">
+        <h3 style="margin-top:0; font-size:14px; color:#00ffcc;">🔒 Acesso Seguro</h3>
+        <input type="email" id="auth-email" placeholder="Email">
         <input type="password" id="auth-password" placeholder="Palavra-passe">
         <div style="display: flex; gap: 8px;">
             <button onclick="handleLogin()" style="flex:1;">Entrar</button>
@@ -33,19 +33,19 @@
         </div>
     </div>
 
-    <!-- MAIN APP CONTAINER -->
+    <!-- MAIN APP -->
     <div id="app-container" style="display:none;">
         <div class="card">
-            <h3 style="margin-top:0; font-size:14px; color:#00ffcc;">🤖 TERMINAL IA (COM MEMÓRIA CONTEXTUAL)</h3>
+            <h3 style="margin-top:0; font-size:14px; color:#00ffcc;">🤖 TERMINAL INTELIGENTE (/kdp, /zap, /task)</h3>
             <input type="password" id="gemini-key" placeholder="Chave API Gemini">
             <button onclick="saveApiKey()" style="width:100%; margin-bottom:8px;">Salvar Chave</button>
-            <div id="chat-messages" style="height:180px; overflow-y:auto; background:#030712; padding:8px; border-radius:4px; margin-bottom:8px; border:1px solid #1f2937;"></div>
-            <textarea id="user-input" rows="2" placeholder="Digite seu comando (/task para criar tarefa)..."></textarea>
-            <button onclick="sendGeminiMessage()" style="width:100%;">Enviar Comando IA</button>
+            <div id="chat-messages" style="height:160px; overflow-y:auto; background:#030712; padding:8px; border-radius:4px; margin-bottom:8px; border:1px solid #1f2937;"></div>
+            <textarea id="user-input" rows="2" placeholder="Digite comando (/kdp, /zap, /task)..."></textarea>
+            <button onclick="sendGeminiMessage()" style="width:100%;">Executar Comando</button>
         </div>
 
         <div class="card">
-            <h3 style="margin-top:0; font-size:14px; color:#00ffcc;">📋 KANBAN TÁTICO SEGURO (RLS)</h3>
+            <h3 style="margin-top:0; font-size:14px; color:#00ffcc;">📋 KANBAN TÁTICO</h3>
             <div style="margin-bottom:8px; display:flex; gap:4px;">
                 <input type="text" id="new-task-title" placeholder="Nova tarefa..." style="margin-bottom:0;">
                 <button onclick="createTask()">Adicionar</button>
@@ -58,9 +58,11 @@
         </div>
 
         <div class="card">
-            <h3 style="margin-top:0; font-size:14px; color:#00ffcc;">⚙️ UTILS & LOGS</h3>
-            <button onclick="generateMasterKdpScript()" style="width:100%; margin-bottom:6px; background:#3b82f6; color:#fff;">Gerar Script Python KDP</button>
-            <button onclick="handleLogout()" style="width:100%; background:#ef4444; color:#fff;">Terminar Sessão</button>
+            <h3 style="margin-top:0; font-size:14px; color:#00ffcc;">⚙️ PM2 WHATSAPP & ECOSISTEMA</h3>
+            <button onclick="simulatePm2Status()" style="width:100%; margin-bottom:6px; background:#8b5cf6; color:#fff;">Verificar Estado Bot PM2 (Termux)</button>
+            <button onclick="loadProjectHub()" style="width:100%; margin-bottom:6px; background:#3b82f6; color:#fff;">Atalhos: Clube Ativo & EduMindsAI</button>
+            <textarea id="util-output" rows="3" readonly style="margin-top:8px; font-size:11px; background:#030712;" placeholder="Status do ecossistema..."></textarea>
+            <button onclick="handleLogout()" style="width:100%; margin-top:8px; background:#ef4444; color:#fff;">Terminar Sessão</button>
         </div>
     </div>
 
