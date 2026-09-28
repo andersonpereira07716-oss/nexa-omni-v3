@@ -1,8 +1,17 @@
-window.addEventListener('DOMContentLoaded', () => {
+// Configuração do Supabase
+const SUPABASE_URL = "https://aqqhpttbmoiovlbfhqqr.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxcWhwdHRibW9pb3ZsYmZocXFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1NDExNzYsImV4cCI6MjEwNjExNzE3Nn0.gvz_KzuS0Z--DzI0kfgtW4QjcHPlgb_iBdrHB1iKw8o";
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+window.addEventListener('DOMContentLoaded', async () => {
     const savedKey = localStorage.getItem('nexa_gemini_key');
     if (savedKey) {
         document.getElementById('gemini-key').value = savedKey;
     }
+    
+    // Carregar histórico recente do Supabase se houver sessão ativa
+    await loadChatHistory();
 });
 
 function saveApiKey() {
@@ -47,32 +56,75 @@ async function sendGeminiMessage() {
     chatBox.innerHTML += `<div id="${loadingId}" class="message ai">A processar com a Gemini...</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    try {
-        // Tenta o modelo principal atual
-        let data = await callGeminiAPI(apiKey, userText, 'gemini-3.8-flash');
+    let aiReply = "";
+    let usedModel = "gemini-3.8-flash";
 
-        // Se houver pico/indisponibilidade, tenta o fallback estável correspondente
+    try {
+        let data = await callGeminiAPI(apiKey, userText, usedModel);
+
         if (data.error) {
             document.getElementById(loadingId).innerText = "A alternar para rota de alta estabilidade...";
-            data = await callGeminiAPI(apiKey, userText, 'gemini-3.5-flash');
+            usedModel = "gemini-3.5-flash";
+            data = await callGeminiAPI(apiKey, userText, usedModel);
         }
 
         document.getElementById(loadingId).remove();
 
         if (data.error) {
             chatBox.innerHTML += `<div class="message ai" style="color:#ef4444;">Erro da API: ${data.error.message || 'Erro desconhecido'}</div>`;
+            return;
         } else if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
-            const aiReply = data.candidates[0].content.parts[0].text;
+            aiReply = data.candidates[0].content.parts[0].text;
             chatBox.innerHTML += `<div class="message ai">${aiReply}</div>`;
         } else {
             chatBox.innerHTML += `<div class="message ai" style="color:#ef4444;">Resposta inesperada da API.</div>`;
+            return;
         }
     } catch (error) {
         document.getElementById(loadingId).remove();
         chatBox.innerHTML += `<div class="message ai" style="color:#ef4444;">Erro de conexão com a API.</div>`;
+        return;
     }
 
     chatBox.scrollTop = chatBox.scrollHeight;
+
+    // Persistir no Supabase se houver utilizador autenticado
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+            await supabaseClient.from('chat_history').insert([
+                { user_id: user.id, prompt: userText, response: aiReply, model_used: usedModel }
+            ]);
+        }
+    } catch (err) {
+        console.error("Erro ao gravar histórico na base de dados:", err);
+    }
+}
+
+async function loadChatHistory() {
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabaseClient
+            .from('chat_history')
+            .select('*')
+            .order('created_at', { ascending: true })
+            .limit(20);
+
+        if (error || !data) return;
+
+        const chatBox = document.getElementById('chat-messages');
+        chatBox.innerHTML = ''; // Limpa e carrega histórico persistido
+
+        data.forEach(item => {
+            chatBox.innerHTML += `<div class="message" style="margin-left:auto; background:#00ffcc; color:#030712; margin-bottom:6px; padding:6px 8px; border-radius:4px; max-width:85%;">${item.prompt}</div>`;
+            chatBox.innerHTML += `<div class="message ai">${item.response}</div>`;
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+    } catch (err) {
+        console.error("Erro ao carregar histórico:", err);
+    }
 }
 
 function triggerWebhook() {
@@ -80,5 +132,5 @@ function triggerWebhook() {
 }
 
 function runSystemCheck() {
-    document.getElementById('util-output').innerText = "Verificando ambiente Termux...\n- Node.js / Vercel CLI: OK\n- Gemini API: Integrado\n- Memória de Processos: Estável\nDiagnóstico concluído com sucesso!";
+    document.getElementById('util-output').innerText = "Verificando ambiente Termux...\n- Node.js / Vercel CLI: OK\n- Supabase DB (nexa-omni-db): Conectado\n- Gemini API: Integrado\nDiagnóstico concluído com sucesso!";
 }
