@@ -27,11 +27,13 @@ async function sendGeminiMessage() {
     const userText = input.value;
     input.value = '';
 
+    // Adiciona imediatamente a mensagem do utilizador ao chat local
     chatBox.innerHTML += `<div class="message user">${userText}</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
     const aiMsgId = 'ai-' + Date.now();
     chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar stream...</div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
     
     let aiReply = "";
     try {
@@ -40,10 +42,14 @@ async function sendGeminiMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: userText }] }] })
         });
+
+        if (!res.ok) throw new Error('Erro na resposta da API');
+
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        document.getElementById(aiMsgId).innerText = "";
+        const aiNode = document.getElementById(aiMsgId);
+        if (aiNode) aiNode.innerText = "";
 
         while (true) {
             const { value, done } = await reader.read();
@@ -53,25 +59,35 @@ async function sendGeminiMessage() {
             buffer = lines.pop();
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
-                    const parsed = JSON.parse(line.replace('data: ', '').trim());
-                    const chunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (chunk) {
-                        aiReply += chunk;
-                        document.getElementById(aiMsgId).innerText = aiReply;
-                        chatBox.scrollTop = chatBox.scrollHeight;
+                    const jsonStr = line.replace('data: ', '').trim();
+                    if (jsonStr) {
+                        const parsed = JSON.parse(jsonStr);
+                        const chunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (chunk) {
+                            aiReply += chunk;
+                            const node = document.getElementById(aiMsgId);
+                            if (node) {
+                                node.innerText = aiReply;
+                                chatBox.scrollTop = chatBox.scrollHeight;
+                            }
+                        }
                     }
                 }
             }
         }
     } catch (e) {
-        document.getElementById(aiMsgId).innerText = "Erro no streaming da IA.";
+        const node = document.getElementById(aiMsgId);
+        if (node) node.innerText = "Erro no streaming da IA.";
+        console.error(e);
+        return;
     }
 
+    // Grava de forma segura na base de dados sem recarregar o histórico inteiro bruscamente
     await supabaseClient.from('chat_history').insert([{ prompt: userText, response: aiReply, model_used: 'gemini-3.5-flash' }]);
 }
 
 async function loadChatHistory() {
-    const { data } = await supabaseClient.from('chat_history').select('*').order('created_at', { ascending: true }).limit(10);
+    const { data } = await supabaseClient.from('chat_history').select('*').order('created_at', { ascending: true }).limit(15);
     if (!data) return;
     const chatBox = document.getElementById('chat-messages');
     chatBox.innerHTML = '';
@@ -120,7 +136,7 @@ function setupRealtime() {
 }
 
 function generatePythonKdpScript() {
-    document.getElementById('util-output').value = `import reportlab\n# Script Python para KDP ReportLab / FPDF2\nfrom reportlab.pdfgen import canvas\n\ndef criar_livro():\n    pdf = canvas.Canvas("livro_kdp.pdf")\n    pdf.drawString(100, 750, "NEXA Automated Publishing KDP")\n    pdf.save()\n\nif __name__ == "__main__":\n    criar_livro()`;
+    document.getElementById('util-output').value = `import reportlab\nfrom reportlab.pdfgen import canvas\n\ndef criar_livro():\n    pdf = canvas.Canvas("livro_kdp.pdf")\n    pdf.drawString(100, 750, "NEXA Automated Publishing KDP")\n    pdf.save()\n\nif __name__ == "__main__":\n    criar_livro()`;
 }
 
 function generatePm2WhatsappScript() {
