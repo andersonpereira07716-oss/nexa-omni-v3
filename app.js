@@ -103,13 +103,13 @@ async function sendGeminiMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     const aiMsgId = 'ai-' + Date.now();
-    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar canal seguro (Standard)...</div>`;
+    chatBox.innerHTML += `<div id="${aiMsgId}" class="message ai">A processar com Gemini 2.0...</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
     let aiReply = "";
     try {
-        // Mudança para o endpoint padrão de generateContent (sem SSE/streaming para garantir estabilidade absoluta)
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        // Atualizado para o modelo gemini-2.0-flash com rota padrão de alta estabilidade
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -134,7 +134,7 @@ async function sendGeminiMessage() {
     }
 
     if (currentUser && aiReply) {
-        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-1.5-flash-standard' }]);
+        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-2.0-flash' }]);
         sendPushNotification("IA Respondeu", "Verifica o terminal NEXA Supreme.");
     }
 }
