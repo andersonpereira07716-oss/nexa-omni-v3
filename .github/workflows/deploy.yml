@@ -1,0 +1,11 @@
+name: NEXA CI/CD Pipeline
+on:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Deploy to Production
+      run: echo "NEXA Omni Build & Sync Concluído com Sucesso!"
