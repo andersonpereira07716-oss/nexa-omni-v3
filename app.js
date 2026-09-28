@@ -70,6 +70,8 @@ function saveApiKeySecure() {
 }
 
 function getApiKey() {
+    const apiKeyField = document.getElementById('gemini-key').value.trim();
+    if (apiKeyField) return apiKeyField;
     const saved = localStorage.getItem('nexa_secure_gemini');
     return saved ? decryptKey(saved) : "";
 }
@@ -116,11 +118,16 @@ async function sendGeminiMessage() {
 
     let aiReply = "";
     try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`, {
+        // Atualizado para o modelo padrão universal garantido
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: historyContents })
         });
+
+        if (!res.ok) {
+            throw new Error("Erro HTTP: " + res.status);
+        }
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -154,12 +161,12 @@ async function sendGeminiMessage() {
         }
     } catch (e) {
         const node = document.getElementById(aiMsgId);
-        if (node) node.innerText = "Erro no streaming.";
+        if (node) node.innerText = "[ERRO] Falha na ligação com a API. Verifica se a chave é válida.";
         return;
     }
 
-    if (currentUser) {
-        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-2.5-flash' }]);
+    if (currentUser && aiReply) {
+        await supabaseClient.from('chat_history').insert([{ user_id: currentUser.id, prompt: userText, response: aiReply, model_used: 'gemini-1.5-flash' }]);
         sendPushNotification("IA Respondeu", "Verifica o terminal NEXA Supreme.");
     }
 }
